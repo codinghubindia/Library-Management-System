@@ -1,0 +1,45 @@
+<!-- ./index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Library Management System</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>Library Management System</h1>
+  </header>
+  <main>
+    <div class="container">
+      <aside class="sidebar">
+        <button id="addBookBtn" class="action-btn">Add Book</button>
+        <button id="borrowBookBtn" class="action-btn">Borrow Book</button>
+        <button id="returnBookBtn" class="action-btn">Return Book</button>
+        <button id="deleteBookBtn" class="action-btn">Delete Book</button>
+        <button id="viewBorrowersBtn" class="action-btn">View Borrowers</button>
+        <button id="viewQueueBtn" class="action-btn">View Queue</button>
+      </aside>
+      <section class="content">
+        <div id="form-section" class="hidden"></div>
+        <h2>Available Books</h2>
+        <div id="book-list">
+          <!-- Dynamic Book List -->
+        </div>
+      </section>
+    </div>
+    <!-- Modal -->
+    <div id="modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="modal-form-content">
+            <!-- Dynamic form content will be injected here -->
+            </div>
+        </div>
+    </div>
+  </main>
+  <script src="scripts.js"></script>
+</body>
+</html>
