@@ -1,314 +1,489 @@
-// ./scripts.js
+// Define linked list and queue structures
+class Book {
+  constructor(id, title, author, qty) {
+      this.id = id;
+      this.title = title;
+      this.author = author;
+      this.qty = qty;
+      this.nxt = null;
+      this.pre = null;
+  }
+}
 
-// Initialize library data
-const library = {
-    books: JSON.parse(localStorage.getItem('books')) || [],
-    borrowers: JSON.parse(localStorage.getItem('borrowers')) || [],
-    queue: JSON.parse(localStorage.getItem('queue')) || [],
-  };
-  
-  // Save data to localStorage
-  function saveData() {
-    localStorage.setItem('books', JSON.stringify(library.books));
-    localStorage.setItem('borrowers', JSON.stringify(library.borrowers));
-    localStorage.setItem('queue', JSON.stringify(library.queue));
+class Student {
+  constructor(usn, name, borrowedBookId) {
+      this.usn = usn;
+      this.name = name;
+      this.borrowedBookId = borrowedBookId;
+      this.nxt = null;
+      this.pre = null;
   }
-  
-  // Display books
-  function displayBooks() {
-    const bookList = document.getElementById('book-list');
-    if (library.books.length === 0) {
-      bookList.innerHTML = '<p>No books available.</p>';
-      return;
-    }
-  
-    const table = `
-      <table>
-        <thead>
-          <tr>
-            <th>Book ID</th>
-            <th>Title</th>
-            <th>Author</th>
-            <th>Quantity</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${library.books.map(book => `
-            <tr>
-              <td>${book.id}</td>
-              <td>${book.title}</td>
-              <td>${book.author}</td>
-              <td>${book.qty}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    `;
-    bookList.innerHTML = table;
+}
+
+class QueueNode {
+  constructor(usn, name, bookId) {
+      this.usn = usn;
+      this.name = name;
+      this.bookId = bookId;
+      this.nxt = null;
   }
-  
-  // Show Modal
-  function showModal(contentHtml, formType = '') {
-    const modal = document.getElementById('modal');
-    const modalContent = document.getElementById('modal-form-content');
-    const closeBtn = document.querySelector('.close');
-  
-    modalContent.innerHTML = contentHtml;
-    modal.style.display = 'block';
-  
-    if (formType) {
+}
+
+class Queue {
+  constructor() {
+      this.front = null;
+      this.rear = null;
+  }
+
+  enqueue(usn, name, bookId) {
+      const newNode = new QueueNode(usn, name, bookId);
+      if (!this.rear) {
+          this.front = this.rear = newNode;
+      } else {
+          this.rear.nxt = newNode;
+          this.rear = newNode;
+      }
+  }
+
+  dequeue() {
+      if (!this.front) return null;
+      const temp = this.front;
+      this.front = this.front.nxt;
+      if (!this.front) this.rear = null;
+      return temp;
+  }
+
+  isEmpty() {
+      return this.front === null;
+  }
+}
+
+// Initialize data structures
+let bookList = null;
+let borrowerList = null;
+const waitQueue = new Queue();
+
+// Save and Load to Local Storage
+function saveData() {
+  const serializedBooks = [];
+  let currentBook = bookList;
+  while (currentBook) {
+      serializedBooks.push({
+          id: currentBook.id,
+          title: currentBook.title,
+          author: currentBook.author,
+          qty: currentBook.qty,
+      });
+      currentBook = currentBook.nxt;
+  }
+
+  const serializedBorrowers = [];
+  let currentBorrower = borrowerList;
+  while (currentBorrower) {
+      serializedBorrowers.push({
+          usn: currentBorrower.usn,
+          name: currentBorrower.name,
+          borrowedBookId: currentBorrower.borrowedBookId,
+      });
+      currentBorrower = currentBorrower.nxt;
+  }
+
+  const serializedQueue = [];
+  let currentQueueNode = waitQueue.front;
+  while (currentQueueNode) {
+      serializedQueue.push({
+          usn: currentQueueNode.usn,
+          name: currentQueueNode.name,
+          bookId: currentQueueNode.bookId,
+      });
+      currentQueueNode = currentQueueNode.nxt;
+  }
+
+  localStorage.setItem('bookList', JSON.stringify(serializedBooks));
+  localStorage.setItem('borrowerList', JSON.stringify(serializedBorrowers));
+  localStorage.setItem('waitQueue', JSON.stringify(serializedQueue));
+}
+
+function loadData() {
+  const serializedBooks = JSON.parse(localStorage.getItem('bookList') || '[]');
+  const serializedBorrowers = JSON.parse(localStorage.getItem('borrowerList') || '[]');
+  const serializedQueue = JSON.parse(localStorage.getItem('waitQueue') || '[]');
+
+  bookList = null;
+  let previousBook = null;
+  for (const book of serializedBooks) {
+      const newBook = new Book(book.id, book.title, book.author, book.qty);
+      if (!bookList) bookList = newBook;
+      if (previousBook) {
+          previousBook.nxt = newBook;
+          newBook.pre = previousBook;
+      }
+      previousBook = newBook;
+  }
+
+
+  borrowerList = null;
+  let previousBorrower = null;
+  for (const borrower of serializedBorrowers) {
+      const newBorrower = new Student(borrower.usn, borrower.name, borrower.borrowedBookId);
+      if (!borrowerList) borrowerList = newBorrower;
+      if (previousBorrower) {
+          previousBorrower.nxt = newBorrower;
+          newBorrower.pre = previousBorrower;
+      }
+      previousBorrower = newBorrower;
+  }
+
+  waitQueue.front = waitQueue.rear = null;
+  for (const queueNode of serializedQueue) {
+      waitQueue.enqueue(queueNode.usn, queueNode.name, queueNode.bookId);
+  }
+}
+
+// Convert linked list to array for local storage
+function toArray(list) {
+  const result = [];
+  let temp = list;
+  while (temp) {
+      result.push(temp);
+      temp = temp.nxt;
+  }
+  return result;
+}
+
+// Convert queue to array for local storage
+function toArrayQueue(queue) {
+  const result = [];
+  let temp = queue.front;
+  while (temp) {
+      result.push(temp);
+      temp = temp.nxt;
+  }
+  return result;
+}
+
+// Recreate linked list from array
+function fromArray(data, NodeClass) {
+  let head = null;
+  let tail = null;
+  data.forEach(item => {
+      const node = new NodeClass(item.id || item.usn, item.title || item.name, item.author || item.borrowedBookId, item.qty);
+      if (!head) {
+          head = node;
+          tail = node;
+      } else {
+          tail.nxt = node;
+          node.pre = tail;
+          tail = node;
+      }
+  });
+  return head;
+}
+
+// Modal Handling
+function showModal(contentHtml, formType = '') {
+  const modal = document.getElementById('modal');
+  const modalContent = document.getElementById('modal-form-content');
+  const closeBtn = document.querySelector('.close');
+
+  modalContent.innerHTML = contentHtml;
+  modal.style.display = 'block';
+
+  if (formType) {
       const form = modalContent.querySelector('form');
       form.addEventListener('submit', e => handleFormSubmit(e, formType));
-    }
-  
-    closeBtn.onclick = () => {
+  }
+
+  closeBtn.onclick = () => {
       modal.style.display = 'none';
-    };
-  
-    window.onclick = event => {
+  };
+
+  window.onclick = event => {
       if (event.target === modal) {
-        modal.style.display = 'none';
+          modal.style.display = 'none';
       }
-    };
-  }
-  
-  // Generate Borrowers List
-  function displayBorrowers() {
-    if (library.borrowers.length === 0) {
-      showModal('<p>No borrowers found.</p>');
+  };
+}
+
+// Display Books
+function displayBooks() {
+  const bookListDiv = document.getElementById('book-list');
+  if (!bookList) {
+      bookListDiv.innerHTML = '<p>No books available.</p>';
       return;
-    }
-  
-    const table = `
-      <table>
-        <thead>
-          <tr>
-            <th>USN</th>
-            <th>Name</th>
-            <th>Borrowed Book ID</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${library.borrowers.map(borrower => `
-            <tr>
-              <td>${borrower.usn}</td>
-              <td>${borrower.name}</td>
-              <td>${borrower.bookId}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    `;
-    showModal(`<h2>Borrowers</h2>${table}`);
   }
-  
-  // Generate Queue List
-  function displayQueue() {
-    if (library.queue.length === 0) {
-      showModal('<p>No borrowers in the queue.</p>');
-      return;
-    }
-  
-    const table = `
+
+  const books = toArray(bookList);
+  const table = `
       <table>
-        <thead>
-          <tr>
-            <th>USN</th>
-            <th>Name</th>
-            <th>Requested Book ID</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${library.queue.map(queueItem => `
-            <tr>
-              <td>${queueItem.usn}</td>
-              <td>${queueItem.name}</td>
-              <td>${queueItem.bookId}</td>
-            </tr>
-          `).join('')}
-        </tbody>
+          <thead>
+              <tr>
+                  <th>Book ID</th>
+                  <th>Title</th>
+                  <th>Author</th>
+                  <th>Quantity</th>
+              </tr>
+          </thead>
+          <tbody>
+              ${books.map(book => `
+                  <tr>
+                      <td>${book.id}</td>
+                      <td>${book.title}</td>
+                      <td>${book.author}</td>
+                      <td>${book.qty}</td>
+                  </tr>
+              `).join('')}
+          </tbody>
       </table>
-    `;
-    showModal(`<h2>Queue</h2>${table}`);
-  }
-  
-  // Generate Form Content
-  function generateFormContent(formType) {
-    switch (formType) {
+  `;
+  bookListDiv.innerHTML = table;
+}
+
+// Generate Forms
+function generateFormContent(formType) {
+  switch (formType) {
       case 'addBook':
-        return `
-          <form id="addBookForm">
-            <h2>Add Book</h2>
-            <label for="bookId">Book ID:</label>
-            <input type="text" id="bookId" required />
-            <label for="title">Title:</label>
-            <input type="text" id="title" required />
-            <label for="author">Author:</label>
-            <input type="text" id="author" required />
-            <label for="qty">Quantity:</label>
-            <input type="number" id="qty" min="1" required />
-            <button type="submit">Add Book</button>
-          </form>
-        `;
-  
+          return `
+              <form id="addBookForm">
+                  <h2>Add Book</h2>
+                  <label for="bookId">Book ID:</label>
+                  <input type="text" id="bookId" required />
+                  <label for="title">Title:</label>
+                  <input type="text" id="title" required />
+                  <label for="author">Author:</label>
+                  <input type="text" id="author" required />
+                  <label for="qty">Quantity:</label>
+                  <input type="number" id="qty" min="1" required />
+                  <button type="submit">Add Book</button>
+              </form>
+          `;
       case 'borrowBook':
-        return `
-          <form id="borrowBookForm">
-            <h2>Borrow Book</h2>
-            <label for="borrowBookId">Book ID:</label>
-            <input type="text" id="borrowBookId" required />
-            <label for="usn">Student USN:</label>
-            <input type="text" id="usn" required />
-            <label for="name">Student Name:</label>
-            <input type="text" id="name" required />
-            <button type="submit">Borrow Book</button>
-          </form>
-        `;
-  
+          return `
+              <form id="borrowBookForm">
+                  <h2>Borrow Book</h2>
+                  <label for="borrowBookId">Book ID:</label>
+                  <input type="text" id="borrowBookId" required />
+                  <label for="usn">Student USN:</label>
+                  <input type="text" id="usn" required />
+                  <label for="name">Student Name:</label>
+                  <input type="text" id="name" required />
+                  <button type="submit">Borrow Book</button>
+              </form>
+          `;
       case 'returnBook':
-        return `
-          <form id="returnBookForm">
-            <h2>Return Book</h2>
-            <label for="returnUsn">Student USN:</label>
-            <input type="text" id="returnUsn" required />
-            <button type="submit">Return Book</button>
-          </form>
-        `;
-  
+          return `
+              <form id="returnBookForm">
+                  <h2>Return Book</h2>
+                  <label for="returnUsn">Student USN:</label>
+                  <input type="text" id="returnUsn" required />
+                  <button type="submit">Return Book</button>
+              </form>
+          `;
       case 'deleteBook':
-        return `
-          <form id="deleteBookForm">
-            <h2>Delete Book</h2>
-            <label for="deleteBookId">Book ID:</label>
-            <input type="text" id="deleteBookId" required />
-            <button type="submit">Delete Book</button>
-          </form>
-        `;
-  
-      default:
-        return '<p>Error loading form. Please try again.</p>';
-    }
+          return `
+              <form id="deleteBookForm">
+                  <h2>Delete Book</h2>
+                  <label for="deleteBookId">Book ID:</label>
+                  <input type="text" id="deleteBookId" required />
+                  <button type="submit">Delete Book</button>
+              </form>
+          `;
   }
-  
-  // Handle form submissions
-  function handleFormSubmit(e, formType) {
-    e.preventDefault();
-    const modal = document.getElementById('modal');
-  
-    switch (formType) {
+}
+
+// Handle Form Submissions
+function handleFormSubmit(e, formType) {
+  e.preventDefault();
+  const modal = document.getElementById('modal');
+
+  switch (formType) {
       case 'addBook':
-        const bookId = document.getElementById('bookId').value;
-        const title = document.getElementById('title').value;
-        const author = document.getElementById('author').value;
-        const qty = parseInt(document.getElementById('qty').value, 10);
-  
-        if (bookId && title && author && !isNaN(qty)) {
-          library.books.push({ id: bookId, title, author, qty });
-          saveData();
-          modal.style.display = 'none';
-          displayBooks();
-        } else {
-          alert('Invalid input. Please try again.');
-        }
-        break;
-  
-      case 'borrowBook':
-        const borrowBookId = document.getElementById('borrowBookId').value;
-        const usn = document.getElementById('usn').value;
-        const name = document.getElementById('name').value;
-  
-        const bookToBorrow = library.books.find(book => book.id === borrowBookId);
-        if (bookToBorrow && bookToBorrow.qty > 0) {
-          bookToBorrow.qty--;
-          library.borrowers.push({ usn, name, bookId: borrowBookId });
-          saveData();
-          modal.style.display = 'none';
-          displayBooks();
-        } else if (!bookToBorrow) {
-          alert('Book not found.');
-        } else {
-          // Add borrower to the queue if book is unavailable
-          library.queue.push({ usn, name, bookId: borrowBookId });
-          saveData();
-          alert('No copies available, you have been added to the queue.');
-          modal.style.display = 'none';
-        }
-        break;
-  
-      case 'returnBook':
-        const returnUsn = document.getElementById('returnUsn').value;
-  
-        const borrowerIndex = library.borrowers.findIndex(b => b.usn === returnUsn);
-        if (borrowerIndex !== -1) {
-          const { bookId } = library.borrowers[borrowerIndex];
-          const returnedBook = library.books.find(book => book.id === bookId);
-          if (returnedBook) returnedBook.qty++;
-          library.borrowers.splice(borrowerIndex, 1);
-  
-          // Check if there are any people waiting in the queue for the returned book
-          const queueIndex = library.queue.findIndex(item => item.bookId === bookId);
-          if (queueIndex !== -1) {
-            const nextInQueue = library.queue[queueIndex];
-            // Check if book is available now
-            if (returnedBook.qty > 0) {
-              returnedBook.qty--;
-              library.borrowers.push({ usn: nextInQueue.usn, name: nextInQueue.name, bookId });
-              library.queue.splice(queueIndex, 1);
-              alert(`Book is now available, ${nextInQueue.name} can borrow it.`);
-            }
+          const bookId = document.getElementById('bookId').value;
+          const title = document.getElementById('title').value;
+          const author = document.getElementById('author').value;
+          const qty = parseInt(document.getElementById('qty').value, 10);
+
+          const newBook = new Book(bookId, title, author, qty);
+          if (!bookList) {
+              bookList = newBook;
+          } else {
+              let temp = bookList;
+              while (temp.nxt) temp = temp.nxt;
+              temp.nxt = newBook;
+              newBook.pre = temp;
           }
-  
           saveData();
           modal.style.display = 'none';
           displayBooks();
-        } else {
-          alert('Borrower not found.');
+          break;
+      case 'borrowBook':
+          const borrowBookId = document.getElementById('borrowBookId').value;
+          const usn = document.getElementById('usn').value;
+          const name = document.getElementById('name').value;
+    
+
+          let book = bookList;
+          while (book && book.id !== borrowBookId) book = book.nxt;
+
+          if (!book) {
+            // If the book does not exist, show an error and do not add to the queue
+            alert('Error: Book does not exist in the library.');
+            return;
         }
-        break;
-  
+
+          if (book && book.qty <= 0) {
+              waitQueue.enqueue(usn, name, borrowBookId);
+              saveData();
+              alert('Book unavailable. Added to the queue.');
+          } else {
+              book.qty--;
+              const newBorrower = new Student(usn, name, borrowBookId);
+              newBorrower.nxt = borrowerList;
+              if (borrowerList) borrowerList.pre = newBorrower;
+              borrowerList = newBorrower;
+              saveData();
+              alert('Book borrowed successfully!');
+          }
+          modal.style.display = 'none';
+          displayBooks();
+          break;
+      case 'returnBook':
+          const returnUsn = document.getElementById('returnUsn').value;
+          let borrower = borrowerList;
+          while (borrower && borrower.usn !== returnUsn) borrower = borrower.nxt;
+
+          if (!borrower) {
+              alert('Error: Borrower not found.');
+              return;
+          }
+
+          let returnBook = bookList;
+          while (returnBook && returnBook.id !== borrower.borrowedBookId) returnBook = returnBook.nxt;
+
+          if (!returnBook) {
+              alert('Error: Book not found.');
+              return;
+          }
+
+          if (borrower.pre) borrower.pre.nxt = borrower.nxt;
+          if (borrower.nxt) borrower.nxt.pre = borrower.pre;
+          if (borrower === borrowerList) borrowerList = borrower.nxt;
+          
+          const waiting = waitQueue.front;
+          if (waiting && waiting.bookId === returnBook.id) {
+            const newBorrower = new Student(waiting.usn, waiting.name, waiting.bookId);
+            newBorrower.nxt = borrowerList;
+            if (borrowerList) borrowerList.pre = newBorrower;
+            borrowerList = newBorrower;
+            waitQueue.dequeue();
+          } else {
+            returnBook.qty++;
+          }
+          saveData();
+          modal.style.display = 'none';
+          displayBooks();
+          alert('Book returned successfully!');
+          break;
       case 'deleteBook':
-        const deleteBookId = document.getElementById('deleteBookId').value;
-  
-        const bookIndex = library.books.findIndex(book => book.id === deleteBookId);
-        if (bookIndex !== -1) {
-          library.books.splice(bookIndex, 1);
+          const deleteBookId = document.getElementById('deleteBookId').value;
+          let temp = bookList;
+          while (temp && temp.id !== deleteBookId) temp = temp.nxt;
+
+          if (!temp) {
+              alert('Error: Book not found.');
+              return;
+          }
+
+          if (temp.pre) temp.pre.nxt = temp.nxt;
+          if (temp.nxt) temp.nxt.pre = temp.pre;
+          if (temp === bookList) bookList = temp.nxt;
           saveData();
           modal.style.display = 'none';
           displayBooks();
-        } else {
-          alert('Book not found.');
-        }
-        break;
-  
-      default:
-        alert('Error processing form. Please try again.');
-    }
+          alert('Book deleted successfully!');
+          break;
   }
-  
-  // Attach Modal Forms and Actions to Buttons
-  document.getElementById('addBookBtn').addEventListener('click', () => {
-    const formContent = generateFormContent('addBook');
-    showModal(formContent, 'addBook');
-  });
-  
-  document.getElementById('borrowBookBtn').addEventListener('click', () => {
-    const formContent = generateFormContent('borrowBook');
-    showModal(formContent, 'borrowBook');
-  });
-  
-  document.getElementById('returnBookBtn').addEventListener('click', () => {
-    const formContent = generateFormContent('returnBook');
-    showModal(formContent, 'returnBook');
-  });
-  
-  document.getElementById('deleteBookBtn').addEventListener('click', () => {
-    const formContent = generateFormContent('deleteBook');
-    showModal(formContent, 'deleteBook');
-  });
-  
-  document.getElementById('viewBorrowersBtn').addEventListener('click', displayBorrowers);
-  document.getElementById('viewQueueBtn').addEventListener('click', displayQueue);
-  
-  // Initialize
-  displayBooks();
-  
+}
+
+// Event Listeners for Buttons
+document.getElementById('addBookBtn').addEventListener('click', () => {
+  const formContent = generateFormContent('addBook');
+  showModal(formContent, 'addBook');
+});
+
+document.getElementById('borrowBookBtn').addEventListener('click', () => {
+  const formContent = generateFormContent('borrowBook');
+  showModal(formContent, 'borrowBook');
+});
+
+document.getElementById('returnBookBtn').addEventListener('click', () => {
+  const formContent = generateFormContent('returnBook');
+  showModal(formContent, 'returnBook');
+});
+
+document.getElementById('deleteBookBtn').addEventListener('click', () => {
+  const formContent = generateFormContent('deleteBook');
+  showModal(formContent, 'deleteBook');
+});
+
+document.getElementById('viewBorrowersBtn').addEventListener('click', () => {
+  const borrowers = toArray(borrowerList);
+  if (borrowers.length === 0) {
+      alert('No borrowers found.');
+  } else {
+      const table = `
+          <table>
+              <thead>
+                  <tr>
+                      <th>USN</th>
+                      <th>Name</th>
+                      <th>Borrowed Book ID</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  ${borrowers.map(b => `
+                      <tr>
+                          <td>${b.usn}</td>
+                          <td>${b.name}</td>
+                          <td>${b.borrowedBookId}</td>
+                      </tr>
+                  `).join('')}
+              </tbody>
+          </table>
+      `;
+      showModal(`<h2>Borrowers</h2>${table}`);
+  }
+});
+
+document.getElementById('viewQueueBtn').addEventListener('click', () => {
+  const queue = toArrayQueue(waitQueue);
+  if (queue.length === 0) {
+      alert('No borrowers in the queue.');
+  } else {
+      const table = `
+          <table>
+              <thead>
+                  <tr>
+                      <th>USN</th>
+                      <th>Name</th>
+                      <th>Requested Book ID</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  ${queue.map(q => `
+                      <tr>
+                          <td>${q.usn}</td>
+                          <td>${q.name}</td>
+                          <td>${q.bookId}</td>
+                      </tr>
+                  `).join('')}
+              </tbody>
+          </table>
+      `;
+      showModal(`<h2>Queue</h2>${table}`);
+  }
+});
+
+// Initialize
+loadData();
+displayBooks();
